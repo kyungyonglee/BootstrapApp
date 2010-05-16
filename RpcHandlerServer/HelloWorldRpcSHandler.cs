@@ -17,7 +17,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
  
 using Brunet;
+using Brunet.Messaging;
 using Brunet.Applications;
+using Brunet.Util;
+using Brunet.Symphony;
 using System;
 using System.IO;
 using System.Text;
@@ -45,36 +48,30 @@ namespace Brunet.Applications.Examples {
        */
     public void HandleRpc(ISender caller, string method, IList arguments, object request_state){
       Console.WriteLine(caller + ": " + method + " : " + Encoding.ASCII.GetString(arguments[0] as byte[]));
-      _node.Rpc.SendResult(request_state, arguments[0]);
+      _app_node.Node.Rpc.SendResult(request_state, arguments[0]);
     }
  
     /// <summary>This is the work horse method.</summary>
     public override void Run() {
       // This handles the whole process of preparing the Brunet.Node.
-      CreateNode();
-
-      // Services include XmlRpcManager and Dht over XmlRpcManager
-      StartServices();
+      _app_node = CreateNode(_node_config);
 
       //It registers this class to the currently connected brunet node's RpcManager Class. 
       //By registering this class, all rpc call whose prefix is "HwRpc" will be forwarded to this class.
-      _node.Rpc.AddHandler("HwRpc", this);
+      _app_node.Node.Rpc.AddHandler("HwRpc", this);
 
       // Start the Brunet.Node and allow it to connect to remote nodes
-      Thread thread = new Thread(_node.Connect);
+      Thread thread = new Thread(_app_node.Node.Connect);
       thread.Start();
 
-      Console.WriteLine("Your address is: " + _node.Address + "\n");
+      Console.WriteLine("Your address is: " + _app_node.Node.Address + "\n");
  
       // We will continue on, until we get to the Disconnected states. Assumming
       // you are running this on a supported platform, that would be triggered
       // initially by ctrl-c
-      while(_node.ConState != Node.ConnectionState.Disconnected) {
+      while(_app_node.Node.ConState != Node.ConnectionState.Disconnected) {
         Console.ReadLine();      
       }
- 
-      // Stops the XmlRpcManager and associated services
-      StopServices();
     }
   }
 

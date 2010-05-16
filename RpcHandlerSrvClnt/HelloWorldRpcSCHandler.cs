@@ -17,7 +17,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
  
 using Brunet;
+using Brunet.Messaging;
 using Brunet.Applications;
+using Brunet.Util;
+using Brunet.Symphony;
+using Brunet.Concurrent;
 using System;
 using System.IO;
 using System.Text;
@@ -60,54 +64,48 @@ namespace Brunet.Applications.Examples {
       returns.CloseEvent += delegate(object o, EventArgs eargs) {
         RpcResult result;
         result = (RpcResult)returns.Dequeue();
-        _node.Rpc.SendResult(request_state, result.Result);
+        _app_node.Node.Rpc.SendResult(request_state, result.Result);
       };
 
       foreach(Address a in _addr){
-        AHSender sender = new AHSender(_node, a, 3);
+        AHSender sender = new AHSender(_app_node.Node, a, 3);
         MemBlock key = MemBlock.Reference((byte[]) arguments[0]);
-        _node.Rpc.Invoke(sender, returns, "HW.Test", key);
+        _app_node.Node.Rpc.Invoke(sender, returns, "HW.Test", key);
       }
     }
  
     /// <summary>This is the work horse method.</summary>
     public override void Run() {
       // This handles the whole process of preparing the Brunet.Node.
-      CreateNode();
-
-      // Services include XmlRpcManager and Dht over XmlRpcManager
-      StartServices();
+      _app_node = CreateNode(_node_config);
 
       //It registers this class to the currently connected brunet node's RpcManager Class. 
       //By registering this class, all rpc call whose prefix is "HwRpc" will be forwarded to this class.
-      _node.Rpc.AddHandler("HwRpc", this);
+      _app_node.Node.Rpc.AddHandler("HwRpc", this);
 
       //Creates instance for HelloWorldDataHandler. This class is another rpc call hander class. 
       //This class deals with rpc call between p2p end point in the same beunet node.
-      new HelloWorldDataHandler(_node);
+      new HelloWorldDataHandler(_app_node.Node);
       
       // Start the Brunet.Node and allow it to connect to remote nodes
-      Thread thread = new Thread(_node.Connect);
+      Thread thread = new Thread(_app_node.Node.Connect);
       thread.Start();
 
-      Console.WriteLine("Your address is: " + _node.Address + "\n");
+      Console.WriteLine("Your address is: " + _app_node.Node.Address + "\n");
  
       // We will continue on, until we get to the Disconnected states. Assumming
       // you are running this on a supported platform, that would be triggered
       // initially by ctrl-c
-      while(_node.ConState != Node.ConnectionState.Disconnected) {
+      while(_app_node.Node.ConState != Node.ConnectionState.Disconnected) {
         Console.Write("Send message to: ");
         string address_string = Console.ReadLine().Trim(new char[] {' ', '\t'});
         try {
           _addr.Add(AddressParser.Parse(address_string));
-        } catch() {
+        } catch {
           Console.WriteLine("Invalid address!\n");
           continue;
         }
       }
- 
-      // Stops the XmlRpcManager and associated services
-      StopServices();
     }
   }
 
